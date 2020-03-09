@@ -33,7 +33,7 @@ def MSE_loss(checkpoint, per_batch= True):
     plt.figure()
     
     if per_batch:
-        plt.plot(checkpoint.batch_list, checkpoint.train_loss_list_per_batch, 'g', label= 'train loss', alpha= .7)
+        plt.plot(checkpoint.batch_list, checkpoint.train_loss_list_per_batch, 'g', label= 'train loss', alpha= .5)
     
     else:        
         plt.plot(checkpoint.epoch_list, checkpoint.train_loss_list_per_epoch, 'g', label= 'train loss')

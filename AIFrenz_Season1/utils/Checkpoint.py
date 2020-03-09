@@ -34,11 +34,11 @@ class Checkpoint():
             
         self.log_dir= '%s.log'%self.checkpoint_dir
         self.state_dir= '%s.tar'%self.checkpoint_dir
-        self.seq_model_dir= '%s_seq_model.pth'%self.checkpoint_dir
-        self.linear_model_dir= '%s_linear_model.pth'%self.checkpoint_dir
+        self.model_dir= '%s_model.pth'%self.checkpoint_dir
             
         self.ft_log_dir= '%s_fine_tune.log'%self.checkpoint_dir
-        self.tf_linear_model_dir= '%s_linear_model_fine_tune.pth'%self.checkpoint_dir
+        self.ft_state_dir= '%s_fine_tune.tar'%self.checkpoint_dir
+        self.ft_model_dir= '%s_model_fine_tune.pth'%self.checkpoint_dir
             
         self.batch_list= []
         self.epoch_list= []
@@ -81,8 +81,11 @@ class Checkpoint():
         
         print("\n loading log '%s'"%self.log_dir)
         
-        log= torch.load(self.log_dir)
-        
+        if self.args.fine_tune:
+            log= torch.load(self.ft_log_dir)
+        else:
+            log= torch.load(self.log_dir)
+
         self.batch_list= log['batch_list']
         self.epoch_list= log['epoch']
         self.train_loss_list_per_batch= log['train_loss_per_batch']
@@ -100,15 +103,14 @@ class Checkpoint():
             return self.epoch_list[-1]+ 1, best_valid_loss
 
 
-    def save_checkpoint(self, seq_model, linear_model, optimizer, is_best):
+    def save_checkpoint(self, model, optimizer, is_best):
         
         '''
         Args:
             is_best: boolean type, whether current training step is best or not.
         '''
         
-        state= {'seq_model_state_dict': seq_model.state_dict(),
-                'linear_model_state_dict': linear_model.state_dict(),
+        state= {'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict()}
         
         torch.save(state, self.state_dir)
@@ -116,34 +118,30 @@ class Checkpoint():
         if is_best:
             
             if self.args.fine_tune:
-                
-                torch.save(linear_model.state_dict(), self.tf_linear_model_dir)
-                
+                torch.save(model.state_dict(), self.ft_model_dir)
             else:
-                
-                torch.save(seq_model.state_dict(), self.seq_model_dir)
-                torch.save(linear_model.state_dict(), self.linear_model_dir)
+                torch.save(model.state_dict(), self.model_dir)
             
     
-    def load_model(self, seq_model, linear_model):
+    def load_model(self, model):
         
         '''
         #to do write note
         '''
         
-        seq_model_state= torch.load(self.seq_model_dir)
-        linear_model_state= torch.load(self.linear_model_dir)
-        
-        seq_model.load_state_dict(seq_model_state)
-        linear_model.load_state_dict(linear_model_state)
+        model_state= torch.load(self.model_dir)        
+        model.load_state_dict(model_state)
         
         
-    def load_checkpoint(self, seq_model, linear_model, optimizer):
+    def load_checkpoint(self, model, optimizer):
         
-        state= torch.load(self.state_dir)
         
-        seq_model.load_state_dict(state['seq_model_state_dict'])
-        linear_model.load_state_dict(state['linear_model_state_dict'])
+        if self.args.fine_tune:
+            state= torch.load(self.ft_state_dir)
+        else:
+            state= torch.load(self.state_dir)
+        
+        model.load_state_dict(state['model_state_dict'])
         optimizer.load_state_dict(state['optimizer_state_dict'])
 
                         

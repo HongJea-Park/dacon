@@ -22,8 +22,10 @@ def mse_AIFrenz(y_true, y_pred):
 
 def mse_AIFrenz_torch(y_true, y_pred):
     
+    device= y_true.device.type
+    
     diff= abs(y_true- y_pred)
-    less_then_one= torch.where(diff< 1, torch.zeros(diff.size()), diff)
+    less_then_one= torch.where(diff< 1, torch.zeros(diff.size()).to(device), diff)
     score= (less_then_one** 2).mean()
     
     return score
