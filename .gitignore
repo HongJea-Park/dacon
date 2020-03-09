@@ -1,0 +1,7 @@
+*.ini
+*.pyc
+*.png
+*.csv
+*.tar
+*.log
+*.pth
