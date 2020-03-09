@@ -22,6 +22,10 @@ class Checkpoint():
         self.checkpoint_dir= '../checkpoint/AIFrenz_Season1'
         
         if not os.path.isdir(self.checkpoint_dir):
+            
+            if not os.path.isdir('../checkpoint'):
+                os.mkdir('../checkpoint')
+                
             os.mkdir(self.checkpoint_dir)
         
         self.checkpoint_dir= '%s/%s'%(self.checkpoint_dir, args.model_name)

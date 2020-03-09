@@ -19,6 +19,10 @@ def MSE_loss(checkpoint, per_batch= True):
     png_dir= '../loss_curve/AIFrenz_Season1'
     
     if not os.path.isdir(png_dir):
+        
+        if not os.path.isdir('../loss_curve'):
+            os.mkdir('../loss_curve')
+            
         os.mkdir(png_dir)
     
     if checkpoint.args.fine_tune:
