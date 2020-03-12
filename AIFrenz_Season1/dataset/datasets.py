@@ -5,63 +5,44 @@ Spyder Editor
 This is a temporary script file.
 """
 
-import pandas as pd
+from dataset import dataframe
 from torch.utils.data import Dataset, DataLoader
 import torch
 import numpy as np
 from torch.utils.data.sampler import SubsetRandomSampler
 
 
-class statistics_class():
-    
-    pass
-
-
-class trn_dataset(Dataset):
+class Train_Dataset(Dataset):
     
     '''
     '''
     
-    def __init__(self, chunk_size, step_size= 3, statistics= None, fine_tune= False):
+    def __init__(self, chunk_size, df, Y_cols= None, step_size= 6):
         
         self.chunk_size= chunk_size
         self.step_size= step_size
+        self.Y_cols= Y_cols
         
-        self.df= pd.read_csv('./data/train.csv')
+        self.X_cols= dataframe.sort_Xcols()
+        self.df= df
         
-        self.X_cols= ['X%s'%str(i).zfill(2) for i in range(40)]
+        self.input= self.df[self.X_cols].values
         
-        for zero in np.array(self.X_cols)[self.df[self.X_cols].mean(axis= 0)== 0]: self.X_cols.remove(zero)
-        
-        if fine_tune:
-            self.Y_cols= ['Y18']
+        if not Y_cols:
+            self.true= np.zeros((self.input.shape[0], 1))
         else:
-            self.Y_cols= ['Y%s'%str(i).zfill(2) for i in range(18)]
-            
-        self.labels= self.df[self.Y_cols].dropna()
-        self.idx= self.labels.index
-        self.inputs= self.df[self.X_cols].loc[self.idx]
+            self.true= self.df[self.Y_cols].values
         
-        if isinstance(statistics, statistics_class):
-            
-            self.mean= statistics.mean
-            self.std= statistics.std
-            
-        else:
-            
-            self.mean= self.df[self.X_cols].mean(axis= 0).values
-            self.std= self.df[self.X_cols].std(axis= 0).values+ 1e-256
-            
-            self.statistics= statistics_class()
-            self.statistics.mean= self.mean
-            self.statistics.std= self.std
-            
-        self.norm_df= self.normalization(self.inputs)        
-        self.labels= self.labels.values
+        num_x, num_y= self.input.shape[0], self.true.shape[1]
         
-        self.seq_len= (len(self.idx)- self.chunk_size)// self.step_size
-        self.dataset_len= self.seq_len* self.labels.shape[1]
-
+        if self.step_size== 1: self.num_seq= ((num_x- self.chunk_size+ 1))
+        else: self.num_seq= ((num_x- self.chunk_size+ 1)// self.step_size)+ 1
+        
+        self.dataset_len= self.num_seq* num_y
+            
+        self.input= torch.from_numpy(self.input).float()
+        self.true= torch.from_numpy(self.true).float()
+        
 
     def __len__(self):
         
@@ -70,29 +51,26 @@ class trn_dataset(Dataset):
     
     def __getitem__(self, idx):
         
-        quotient= idx// self.seq_len
-        remainder= idx% self.seq_len
+        remainder= idx% self.num_seq
+        input= self.input[remainder: remainder+ self.chunk_size]
         
-        input_= torch.from_numpy(self.norm_df[remainder: remainder+ self.chunk_size]).float()
-        label_= torch.from_numpy(self.labels[remainder: remainder+ self.chunk_size, quotient]).float()
+        quotient= idx// self.num_seq
         
-        return input_, label_
-    
-    
-    def normalization(self, df):
+        input= self.input[remainder: remainder+ self.chunk_size]
+        true= self.true[remainder: remainder+ self.chunk_size, quotient]
         
-        return ((df- self.mean)/ self.std).values
+        return input, true
+
     
-    
-def shuffle_dataset(dataset, batch_size, val_ratio):
+def split_dataset(dataset, batch_size, val_ratio, shuffle= True):
     
     dataset_size= len(dataset)
     
     indices= list(range(dataset_size))
     split= int(np.floor(val_ratio* dataset_size))
     
-    np.random.seed(42)
-    np.random.shuffle(indices)
+    if shuffle:
+        np.random.shuffle(indices)
 
     train_indices, val_indices= indices[split:], indices[:split]
 
@@ -109,7 +87,9 @@ def shuffle_dataset(dataset, batch_size, val_ratio):
     
 if __name__== '__main__':
     
-    dataset= trn_dataset(chunk_size= 30, step_size= 3)
+    df= dataframe.get_pretrain_df()
+    
+    dataset= Train_Dataset(chunk_size= 30, step_size= 3, fine_tune= True)
 
     batch_size= 256
     validation_split= .5

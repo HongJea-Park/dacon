@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Mar  6 11:56:30 2020
+Created on Tue Mar 10 23:30:58 2020
 
 @author: hongj
 """
 
-from dataset.datasets import trn_dataset, shuffle_dataset
-from model.model import ensemble
+
+from dataset.datasets import Train_Dataset, split_dataset
+from dataset import dataframe
+from model.regressor import Ensemble
 from training.training import train, valid
-from utils.Early_stopping import Early_stopping
-from utils.Checkpoint import Checkpoint
+from utils.early_stopping import Early_stopping
 from utils import argtype
-from utils.custom_loss import mse_AIFrenz_torch
-from visualization.losscurve import MSE_loss
+from utils import custom_loss
+from utils.checkpoint import Checkpoint
+from visualization.predict_curve import pretrain_predict_curve
 import argparse
 import torch
 from torch.optim import Adam
@@ -26,17 +28,17 @@ def main():
     parser= argparse.ArgumentParser()
     
     parser.add_argument('--device', type= str, default= 'gpu', help= 'For cpu: \'cpu\', for gpu: \'gpu\'')
-    parser.add_argument('--n_layers', type= int, default= 3, help= 'the number of layer of model')
-    parser.add_argument('--n_hidden', type= int, default= 18, help= 'the number of hidden units of model')
-    parser.add_argument('--drop_prob', type= float, default= .3, help= 'probability of dropout')
+    parser.add_argument('--chunk_size', type= int, default= 144, help= 'chunk size(sequence length)')
+    parser.add_argument('--step_size', type= int, default= 1, help= 'sequence split step')
+    parser.add_argument('--drop_prob', type= float, default= .2, help= 'probability of dropout')
     parser.add_argument('--lr', type= float, default= 1e-3, help= 'learning rate')
-    parser.add_argument('--weight_decay', type= argtype.check_float, default= '1e-5', help= 'weight_decay')
-    parser.add_argument('--epoch', type= int, default= 300, help= 'epoch')
-    parser.add_argument('--batch_size', type= int, default= 256, help= 'size of batches for training')
-    parser.add_argument('--val_ratio', type= float, default= .2, help= 'validation set ratio')
-    parser.add_argument('--model_name', type= str, default= 'lstm', help= 'model name to save')
+    parser.add_argument('--weight_decay', type= argtype.check_float, default= '1e-2', help= 'weight_decay')
+    parser.add_argument('--epoch', type= int, default= 200, help= 'epoch')
+    parser.add_argument('--batch_size', type= int, default= 64, help= 'size of batches for training')
+    parser.add_argument('--val_ratio', type= float, default= .3, help= 'validation set ratio')
+    parser.add_argument('--model_name', type= str, default= 'target_eda', help= 'model name to save')
     parser.add_argument('--fine_tune', type= argtype.boolean, default= False, help= 'whether fine tuning or not')
-    parser.add_argument('--early_stop', type= argtype.boolean, default= True, help= 'whether apply early stopping or not')
+    parser.add_argument('--early_stop', type= argtype.boolean, default= False, help= 'whether apply early stopping or not')
     parser.add_argument('--per_batch', type= argtype.boolean, default= True, help= 'whether load checkpoint or not')
     parser.add_argument('--c_loss', type= argtype.boolean, default= True, help= 'whether using custom loss or not')
     parser.add_argument('--resume', type= argtype.boolean, default= False, help= 'whether load checkpoint or not')
@@ -44,41 +46,34 @@ def main():
 
     args= parser.parse_args()
 
+    chunk_size= args.chunk_size
+    step_size= args.step_size
     lr= args.lr
     weight_decay= args.weight_decay
     batch_size= args.batch_size
     val_ratio= args.val_ratio
-    n_layers= args.n_layers
-    n_hidden= args.n_hidden
     fine_tune= args.fine_tune
     early_stop= args.early_stop
     resume= args.resume
     c_loss= args.c_loss
+    Y_cols= args.Y_cols
     
-    args.model_name= '%s_w%s_l%s_h%s_c%s'%(
-            args.model_name, 
-            weight_decay.replace('.', ''), 
-            n_layers, 
-            n_hidden,
-            c_loss)
+    if not Y_cols:
+        args.model_name= '%s/%s'%(args.model_name, Y_cols)
+    else:
+        args.model_name= '%s/%s'%(args.model_name, Y_cols[0])
     
     if args.device== 'gpu': 
         args.device= 'cuda'
     device= torch.device(args.device)
     
-    if fine_tune:
-        dataset= trn_dataset(chunk_size= 144, step_size= 6, fine_tune= fine_tune)
-#        batch_size= 1
-        val_ratio= .5
-
-    else:
-        dataset= trn_dataset(chunk_size= 144, step_size= 6)
+    pre_df= dataframe.get_pretrain_df()
+    
+    pre_dataset= Train_Dataset(chunk_size= chunk_size, df= pre_df, Y_cols= Y_cols, step_size= step_size)
             
-    train_loader, valid_loader= shuffle_dataset(dataset, batch_size, val_ratio)
-    
-#    args.input_shape= dataset[0][0].size(1)
-    
-    model= ensemble(args).to(device)
+    train_loader, valid_loader= split_dataset(pre_dataset, batch_size, val_ratio, True)
+
+    model= Ensemble(args).to(device)
     checkpoint= Checkpoint(args)
         
     if resume:
@@ -88,31 +83,23 @@ def main():
         checkpoint.load_checkpoint(model, optimizer)
         
     else:
-        
-        if fine_tune:
-            checkpoint.load_model(model)
-        
+                
         optimizer= Adam(model.parameters(), lr= lr, weight_decay= float(weight_decay))
         epoch, best_valid_loss= 1, np.inf        
-        
+
     if c_loss:
-        criterion= mse_AIFrenz_torch
+        criterion= custom_loss.mse_AIFrenz_torch
     else:
         criterion= nn.MSELoss()
     
     if early_stop:
-        early_stopping= Early_stopping(patience= 30)
+        early_stopping= Early_stopping(patience= 20)
     else:
         early_stopping= Early_stopping(patience= np.inf)    
         
     for e in range(epoch, args.epoch+ 1):
                   
-        print('\n weight decay: %s \t n_layers: %s \t n_hidden: %s \t fine_tune: %s \t c_loss: %s'%(
-                weight_decay, 
-                n_layers, 
-                n_hidden,
-                fine_tune,
-                c_loss))
+        print('\n Y_cols: %s \t resume: %s'%(Y_cols[0], resume))
 
         training_time= time.time()
         
@@ -124,7 +111,8 @@ def main():
                 optimizer, 
                 args.epoch, 
                 e,
-                fine_tune= fine_tune)
+                fine_tune= fine_tune,
+                print_option= True)
         
         valid_loss= valid(
                 model, 
@@ -149,12 +137,17 @@ def main():
         best_valid_loss, check= early_stopping.check_best(valid_loss, best_valid_loss)
         checkpoint.save_checkpoint(model, optimizer, check)
         
-        MSE_loss(checkpoint, args.per_batch)
-        
         if early_stopping.check_stop():
             
             break
         
+        model.eval()
+        
+        pretrain_predict_curve(model, device, Y_cols)
+    
+    model= checkpoint.load_model(model)
+    pretrain_predict_curve(model, device, Y_cols)
+    
         
 if __name__== '__main__':
     

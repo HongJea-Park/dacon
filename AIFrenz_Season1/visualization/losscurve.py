@@ -6,7 +6,7 @@ Created on Mon Mar  2 11:07:26 2020
 """
 
 import matplotlib.pyplot as plt
-import os
+from utils.mkdir import mkdir
 
 
 def MSE_loss(checkpoint, per_batch= True):
@@ -16,14 +16,7 @@ def MSE_loss(checkpoint, per_batch= True):
         args: args must contain dataset, anomaly_label, noise_ratio and model_name.
     '''
     
-    png_dir= '../loss_curve/AIFrenz_Season1'
-    
-    if not os.path.isdir(png_dir):
-        
-        if not os.path.isdir('../loss_curve'):
-            os.mkdir('../loss_curve')
-            
-        os.mkdir(png_dir)
+    png_dir= mkdir('../loss_curve/AIFrenz_Season1')
     
     if checkpoint.args.fine_tune:
         png_dir= '%s/%s_fine_tune'%(png_dir, checkpoint.args.model_name)
@@ -46,5 +39,12 @@ def MSE_loss(checkpoint, per_batch= True):
     plt.xlabel('Epoch')
     plt.ylabel('MSE loss')
     plt.xlim(0, checkpoint.epoch_list[-1]+ 1)
-    plt.savefig('%s.png'%png_dir)
+    
+    while True:
+        try:
+            plt.savefig('%s.png'%png_dir)
+            break
+        except:
+            print('check directory or permission'
+              )
     plt.close()

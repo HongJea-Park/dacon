@@ -12,12 +12,19 @@ import torch
 def mse_AIFrenz(y_true, y_pred):
     
     diff = abs(y_true- y_pred)
-    
     less_then_one= np.where(diff< 1, 0, diff)
-    
     score= np.average(np.average(less_then_one** 2, axis= 0))
     
     return score
+
+
+def mse_AIFrenz_std(y_true, y_pred):
+    
+    diff = abs(y_true- y_pred)
+    less_then_one= np.where(diff< 1, 0, diff)
+    std= (less_then_one** 2).std()
+    
+    return std
 
 
 def mse_AIFrenz_torch(y_true, y_pred):
@@ -29,3 +36,14 @@ def mse_AIFrenz_torch(y_true, y_pred):
     score= (less_then_one** 2).mean()
     
     return score
+
+
+def mse_AIFrenz_torch_std(y_true, y_pred):
+    
+    device= y_true.device.type
+    
+    diff= abs(y_true- y_pred)
+    less_then_one= torch.where(diff< 1, torch.zeros(diff.size()).to(device), diff)
+    std= (less_then_one** 2).std()
+    
+    return std

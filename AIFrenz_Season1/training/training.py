@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 
-def train(model, train_loader, device, criterion, optimizer, EPOCH, epoch, fine_tune):
+def train(model, train_loader, device, criterion, optimizer, EPOCH, epoch, fine_tune, print_option= True):
     
     '''
     '''
@@ -29,9 +29,8 @@ def train(model, train_loader, device, criterion, optimizer, EPOCH, epoch, fine_
         
         input, target= input.to(device), target.to(device)
         target= target.view(-1, 1)
-        h= model.init_hidden(batch_size)
         
-        model_output, h= model(input, h)
+        model_output, _= model(input)
         
         loss= criterion(model_output, target)
         train_loss+= loss.item()* batch_size
@@ -45,15 +44,17 @@ def train(model, train_loader, device, criterion, optimizer, EPOCH, epoch, fine_
         nn.utils.clip_grad_norm_(model.parameters(), 5)
         optimizer.step()
         
-        if batch% 10== 0:
-                        
-            print('\r Epoch: %3d/%3d [%6d/%6d (%5.2f%%)] \ttrain loss: %.6f'%(
-                    epoch,
-                    EPOCH,
-                    num_data,
-                    len(train_loader.sampler),
-                    100* batch/ len(train_loader),
-                    loss.item()))
+        if print_option:
+        
+            if batch% 5== 0:
+                            
+                print('\r Epoch: %3d/%3d [%6d/%6d (%5.2f%%)] \ttrain loss: %.6f'%(
+                        epoch,
+                        EPOCH,
+                        num_data,
+                        len(train_loader.sampler),
+                        100* batch/ len(train_loader),
+                        loss.item()))
             
     return train_loss_list, batch_list, train_loss/ len(train_loader.sampler)
             
@@ -74,9 +75,8 @@ def valid(model, valid_loader, device, criterion):
             
             input, target= input.to(device), target.to(device)
             target= target.view(-1, 1)
-            h= model.init_hidden(batch_size)
-            
-            model_output, h= model(input, h)
+
+            model_output, _= model(input)
             
             valid_loss+= criterion(model_output, target).item()* batch_size
             
@@ -87,7 +87,7 @@ def freeze_parameters(model):
     
     for name, p in model.named_parameters():
         
-        if 'lstm' in name:
+        if 'Feature' in name:
             
             p.requires_grad= False
 

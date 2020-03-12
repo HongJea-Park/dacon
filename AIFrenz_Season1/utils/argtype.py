@@ -7,6 +7,7 @@ Created on Mon Mar  2 11:11:31 2020
 
 import argparse
 import re
+import numpy as np
 
 
 def restricted_float(x):
@@ -49,3 +50,16 @@ def check_float(x):
         
         raise argparse.ArgumentTypeError("%r not a float type" % (x,))
         
+        
+def str_to_list(x):
+    
+    '''
+    '''
+    
+    x= np.array(x.replace(' ', '').split(','))    
+    Y_list= np.array(['Y%s'%str(i).zfill(2) for i in range(18)])
+    
+    Y_list= Y_list[np.in1d(Y_list, x)]
+    
+    return Y_list.tolist()
+            

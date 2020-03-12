@@ -7,7 +7,7 @@ Created on Mon Mar  2 11:01:24 2020
 
 import torch
 import numpy as np
-import os
+from utils.mkdir import mkdir
 
 
 class Checkpoint():
@@ -19,16 +19,7 @@ class Checkpoint():
     def __init__(self, args, lowerbetter= True):
         
         self.args= args
-        self.checkpoint_dir= '../checkpoint/AIFrenz_Season1'
-        
-        if not os.path.isdir(self.checkpoint_dir):
-            
-            if not os.path.isdir('../checkpoint'):
-                os.mkdir('../checkpoint')
-                
-            os.mkdir(self.checkpoint_dir)
-        
-        self.checkpoint_dir= '%s/%s'%(self.checkpoint_dir, args.model_name)
+        self.checkpoint_dir= mkdir('../checkpoint/AIFrenz_Season1/%s'%args.model_name)
                                 
         self.lowerbetter= lowerbetter
             
