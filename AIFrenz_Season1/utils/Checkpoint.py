@@ -19,17 +19,17 @@ class Checkpoint():
     def __init__(self, args, lowerbetter= True):
         
         self.args= args
-        self.checkpoint_dir= mkdir('../checkpoint/AIFrenz_Season1/%s'%args.model_name)
+        self.checkpoint_dir= mkdir('../checkpoint/AIFrenz_Season1/%s/'%args.model_name)
                                 
         self.lowerbetter= lowerbetter
             
-        self.log_dir= '%s.log'%self.checkpoint_dir
-        self.state_dir= '%s.tar'%self.checkpoint_dir
-        self.model_dir= '%s_model.pth'%self.checkpoint_dir
+        self.log_dir= '%s/log.log'%self.checkpoint_dir
+        self.state_dir= '%s/state.tar'%self.checkpoint_dir
+        self.model_dir= '%s/model.pth'%self.checkpoint_dir
             
-        self.ft_log_dir= '%s_fine_tune.log'%self.checkpoint_dir
-        self.ft_state_dir= '%s_fine_tune.tar'%self.checkpoint_dir
-        self.ft_model_dir= '%s_model_fine_tune.pth'%self.checkpoint_dir
+        self.ft_log_dir= '%s/fine_tune_log.log'%self.checkpoint_dir
+        self.ft_state_dir= '%s/fine_tune_state.tar'%self.checkpoint_dir
+        self.ft_model_dir= '%s/model_fine_tune.pth'%self.checkpoint_dir
             
         self.batch_list= []
         self.epoch_list= []

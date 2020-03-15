@@ -11,6 +11,9 @@ import torch
 
 def mse_AIFrenz(y_true, y_pred):
     
+    y_true= np.array(y_true).reshape(-1)
+    y_pred= np.array(y_pred).reshape(-1)
+    
     diff = abs(y_true- y_pred)
     less_then_one= np.where(diff< 1, 0, diff)
     score= np.average(np.average(less_then_one** 2, axis= 0))
@@ -19,6 +22,9 @@ def mse_AIFrenz(y_true, y_pred):
 
 
 def mse_AIFrenz_std(y_true, y_pred):
+    
+    y_true= np.array(y_true).reshape(-1)
+    y_pred= np.array(y_pred).reshape(-1)
     
     diff = abs(y_true- y_pred)
     less_then_one= np.where(diff< 1, 0, diff)

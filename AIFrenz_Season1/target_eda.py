@@ -10,11 +10,12 @@ from dataset.datasets import Train_Dataset, split_dataset
 from dataset import dataframe
 from model.regressor import Ensemble
 from training.training import train, valid
+from training import custom_loss
 from utils.early_stopping import Early_stopping
 from utils import argtype
-from utils import custom_loss
 from utils.checkpoint import Checkpoint
-from visualization.predict_curve import pretrain_predict_curve
+from visualization.predict_curve import Predict_Curve
+from visualization.losscurve import MSE_loss
 import argparse
 import torch
 from torch.optim import Adam
@@ -34,11 +35,12 @@ def main():
     parser.add_argument('--lr', type= float, default= 1e-3, help= 'learning rate')
     parser.add_argument('--weight_decay', type= argtype.check_float, default= '1e-2', help= 'weight_decay')
     parser.add_argument('--epoch', type= int, default= 200, help= 'epoch')
-    parser.add_argument('--batch_size', type= int, default= 64, help= 'size of batches for training')
-    parser.add_argument('--val_ratio', type= float, default= .3, help= 'validation set ratio')
+    parser.add_argument('--batch_size', type= int, default= 128, help= 'size of batches for training')
+    parser.add_argument('--val_ratio', type= float, default= .5, help= 'validation set ratio')
     parser.add_argument('--model_name', type= str, default= 'target_eda', help= 'model name to save')
     parser.add_argument('--fine_tune', type= argtype.boolean, default= False, help= 'whether fine tuning or not')
     parser.add_argument('--early_stop', type= argtype.boolean, default= False, help= 'whether apply early stopping or not')
+    parser.add_argument('--patience', type= int, default= 10, help= 'patience for early stopping')
     parser.add_argument('--per_batch', type= argtype.boolean, default= True, help= 'whether load checkpoint or not')
     parser.add_argument('--c_loss', type= argtype.boolean, default= True, help= 'whether using custom loss or not')
     parser.add_argument('--resume', type= argtype.boolean, default= False, help= 'whether load checkpoint or not')
@@ -52,38 +54,36 @@ def main():
     weight_decay= args.weight_decay
     batch_size= args.batch_size
     val_ratio= args.val_ratio
-    fine_tune= args.fine_tune
+    fine_tune= False
     early_stop= args.early_stop
     resume= args.resume
     c_loss= args.c_loss
     Y_cols= args.Y_cols
+    patience= args.patience
     
     if not Y_cols:
         args.model_name= '%s/%s'%(args.model_name, Y_cols)
     else:
         args.model_name= '%s/%s'%(args.model_name, Y_cols[0])
     
+    P_curve= Predict_Curve(args.model_name)
+    
     if args.device== 'gpu': 
         args.device= 'cuda'
     device= torch.device(args.device)
     
     pre_df= dataframe.get_pretrain_df()
-    
     pre_dataset= Train_Dataset(chunk_size= chunk_size, df= pre_df, Y_cols= Y_cols, step_size= step_size)
-            
     train_loader, valid_loader= split_dataset(pre_dataset, batch_size, val_ratio, True)
 
     model= Ensemble(args).to(device)
     checkpoint= Checkpoint(args)
         
     if resume:
-                    
         epoch, best_valid_loss= checkpoint.load_log(return_best= True)
         optimizer= Adam(model.parameters(), lr= lr, weight_decay= float(weight_decay))
         checkpoint.load_checkpoint(model, optimizer)
-        
     else:
-                
         optimizer= Adam(model.parameters(), lr= lr, weight_decay= float(weight_decay))
         epoch, best_valid_loss= 1, np.inf        
 
@@ -93,9 +93,9 @@ def main():
         criterion= nn.MSELoss()
     
     if early_stop:
-        early_stopping= Early_stopping(patience= 20)
+        early_stopping= Early_stopping(patience= patience)
     else:
-        early_stopping= Early_stopping(patience= np.inf)    
+        early_stopping= Early_stopping(patience= np.inf)
         
     for e in range(epoch, args.epoch+ 1):
                   
@@ -134,19 +134,19 @@ def main():
                 train_loss_per_epoch, 
                 valid_loss)
         
-        best_valid_loss, check= early_stopping.check_best(valid_loss, best_valid_loss)
+        best_valid_loss, check= early_stopping.check_best(train_loss_per_epoch+ valid_loss, best_valid_loss)
         checkpoint.save_checkpoint(model, optimizer, check)
+        
+        MSE_loss(checkpoint, args.per_batch)
         
         if early_stopping.check_stop():
             
             break
-        
-        model.eval()
-        
-        pretrain_predict_curve(model, device, Y_cols)
+                
+        P_curve.eda_predict_curve(model, device, Y_cols, 0, True)
     
-    model= checkpoint.load_model(model)
-    pretrain_predict_curve(model, device, Y_cols)
+    checkpoint.load_model(model)
+    P_curve.eda_predict_curve(model, device, Y_cols, 0, True)
     
         
 if __name__== '__main__':

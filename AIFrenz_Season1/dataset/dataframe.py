@@ -7,6 +7,7 @@ Created on Wed Mar 11 10:18:27 2020
 
 
 import pandas as pd
+import numpy as np
 
 
 def sort_Xcols():
@@ -29,14 +30,6 @@ def sort_Xcols():
     return X_cols
 
 
-def sort_idx(idx, reverse= False):
-    
-    if reverse:
-        return idx.sort_values(ascending= False)
-    else:
-        return idx
-
-
 def normalization(df):
         
     X_cols= sort_Xcols()
@@ -48,79 +41,67 @@ def normalization(df):
     return ((df- mean)/ std)
 
 
-def get_pretrain_df(reverse= False):
+def get_pretrain_df(shift= 0):
     
-    df= pd.read_csv('./data/train.csv')
-    
-    idx= df['id'].sort_values().index
-    idx= sort_idx(idx, reverse)
+    df= pd.read_csv('./data/train.csv', index_col= 'id')
     
     X_cols= sort_Xcols()
     Y_cols= ['Y%s'%str(i).zfill(2) for i in range(18)]
     
-    df= df[X_cols+ Y_cols].reindex(idx).dropna()
+    df= df[X_cols+ Y_cols].dropna()
+    
+    X, Y= df[X_cols], df[Y_cols]
+    Y.index+= shift
+    
+    df= pd.concat([X, Y], axis= 1).dropna()
     
     df[X_cols]= normalization(df[X_cols])
 
     return df
 
 
-def get_train_df(reverse= False):
+def get_fine_df(shift= 0):
     
-    df= pd.read_csv('./data/train.csv')
-    
-    idx= df['id'].sort_values().index
-    idx= sort_idx(idx, reverse)
-    
+    df= pd.read_csv('./data/train.csv', index_col= 'id')
+
     X_cols= sort_Xcols()
+    
+    df= df[X_cols+ ['Y18']].dropna()
+    
+    X, Y= df[X_cols], df['Y18']
+    Y.index+= shift
+    
+    df= pd.concat([X, Y], axis= 1).dropna()
     
     df[X_cols]= normalization(df[X_cols])
 
-    return df[X_cols].reindex(idx)
+    return df
 
 
-def get_fine_df(reverse= False):
+def get_fine_df_oversampling(times= 100):
     
-    df= pd.read_csv('./data/train.csv')
-    
-    idx= df['id'].sort_values().index
-    idx= sort_idx(idx, reverse)
+    df= pd.read_csv('./data/train.csv', index_col= 'id')
 
     X_cols= sort_Xcols()
     Y_cols= ['Y18']
     
-    df= df[X_cols+ Y_cols].reindex(idx).dropna()
-    
+    df= df[X_cols+ Y_cols].dropna()    
     df[X_cols]= normalization(df[X_cols])
+    
+    new_df= pd.DataFrame()
+    
+    for _ in range(times):
+        new_df= pd.concat([new_df, df], axis= 0).reset_index(drop= True)
+    
+    new_df['Y18']+= (np.random.random()- .5)* 2
 
-    return df
+    return new_df
 
 
-def get_test_df(reverse= False):
+def get_test_df():
     
-    df= pd.read_csv('./data/test.csv')
-    
-    idx= df['id'].sort_values().index
-    idx= sort_idx(idx, reverse)
-    
-    X_cols= sort_Xcols()
-    
+    df= pd.read_csv('./data/test.csv', index_col= 'id')
     df= normalization(df)
     
-    return df[X_cols].reindex(idx)
-
-
-def get_Y18_df(reverse= False):
-    
-    X_cols= sort_Xcols()
-    
-    df1= pd.read_csv('./data/train.csv')[['id']+ X_cols]
-    df2= pd.read_csv('./data/test.csv')[['id']+ X_cols]
-    
-    df= pd.concat([df1, df2], axis= 0)
-    
-    idx= df['id'].sort_values().index
-    idx= sort_idx(idx, reverse)
-    
-    return df[X_cols].reindex(idx)
+    return df[sort_Xcols()]
 
