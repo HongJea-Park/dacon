@@ -14,6 +14,7 @@ from training import custom_loss
 
 class Predict_Curve():
     
+    
     def __init__(self, name, fine_tune= False):
         
         self.root_dir= mkdir('../img/AIFrenz_Season1/%s/'%name)
@@ -80,7 +81,7 @@ class Predict_Curve():
         self.compare((pre_true, pre_id_), (pre_pred, pre_id_), save_option, *args1)
     
         
-    def Y18_predict_curve(self, model, device, shift= 0, save_option= False):
+    def Y18_predict_curve(self, model, device, shift= 0, save_option= False, return_loss= False):
         
         model.to(device).eval()
             
@@ -98,6 +99,9 @@ class Predict_Curve():
         
         *args2,= ('Y18', 'Y18_pred', loss_mean, loss_std)
         self.compare((ft_true, ft_id_), (ft_pred, ft_id_), save_option, *args2)
+        
+        if return_loss:
+            return loss_mean
     
         
 

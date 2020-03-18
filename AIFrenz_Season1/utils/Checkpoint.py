@@ -114,13 +114,17 @@ class Checkpoint():
                 torch.save(model.state_dict(), self.model_dir)
             
     
-    def load_model(self, model):
+    def load_model(self, model, fine_tuned= False):
         
         '''
         #to do write note
         '''
         
-        model_state= torch.load(self.model_dir)        
+        if fine_tuned:
+            model_state= torch.load(self.ft_model_dir)
+        else:
+            model_state= torch.load(self.model_dir)        
+            
         model.load_state_dict(model_state)
         
         

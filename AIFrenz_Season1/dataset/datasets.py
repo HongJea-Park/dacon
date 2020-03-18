@@ -17,21 +17,17 @@ class Train_Dataset(Dataset):
     '''
     '''
     
-    def __init__(self, chunk_size, df, Y_cols= None, step_size= 6):
+    def __init__(self, chunk_size, df, Y= None, step_size= 6):
         
         self.chunk_size= chunk_size
         self.step_size= step_size
-        self.Y_cols= Y_cols
+        self.Y= [Y]
         
         self.X_cols= dataframe.sort_Xcols()
         self.df= df
         
         self.input= self.df[self.X_cols].values
-        
-        if not Y_cols:
-            self.true= np.zeros((self.input.shape[0], 1))
-        else:
-            self.true= self.df[self.Y_cols].values
+        self.true= self.df[self.Y].values
         
         num_x, num_y= self.input.shape[0], self.true.shape[1]
         

@@ -20,9 +20,9 @@ import torch
 from torch.optim import Adam
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch.utils.data import ConcatDataset
 import time
 import numpy as np
-import pandas as pd
 
 
 def main():
@@ -34,19 +34,18 @@ def main():
     parser.add_argument('--step_size', type= int, default= 1, help= 'sequence split step')
     parser.add_argument('--drop_prob', type= float, default= .2, help= 'probability of dropout')
     parser.add_argument('--lr', type= float, default= 1e-3, help= 'learning rate')
-    parser.add_argument('--weight_decay', type= argtype.check_float, default= '1e-2', help= 'weight_decay')
+    parser.add_argument('--weight_decay', type= argtype.check_float, default= '1e-3', help= 'weight_decay')
     parser.add_argument('--epoch', type= int, default= 200, help= 'epoch')
-    parser.add_argument('--batch_size', type= int, default= 256, help= 'size of batches for training')
+    parser.add_argument('--batch_size', type= int, default= 512, help= 'size of batches for training')
     parser.add_argument('--val_ratio', type= float, default= .5, help= 'validation set ratio')
     parser.add_argument('--model_name', type= str, default= 'main_model', help= 'model name to save')
     parser.add_argument('--fine_tune', type= argtype.boolean, default= False, help= 'whether fine tuning or not')
-    parser.add_argument('--oversample_times', type= int, default= 200, help= 'the times oversampling times for fine tuning')
+    parser.add_argument('--oversample_times', type= int, default= 10, help= 'the times oversampling times for fine tuning')
     parser.add_argument('--early_stop', type= argtype.boolean, default= False, help= 'whether apply early stopping or not')
     parser.add_argument('--patience', type= int, default= 10, help= 'patience for early stopping')
     parser.add_argument('--per_batch', type= argtype.boolean, default= True, help= 'whether load checkpoint or not')
     parser.add_argument('--c_loss', type= argtype.boolean, default= True, help= 'whether using custom loss or not')
     parser.add_argument('--resume', type= argtype.boolean, default= False, help= 'whether load checkpoint or not')
-#    parser.add_argument('--Y_cols', type= argtype.str_to_list, default= '', help= 'input the y class type(by spliting ",")')
 
     args= parser.parse_args()
 
@@ -61,60 +60,61 @@ def main():
     early_stop= args.early_stop
     resume= args.resume
     c_loss= args.c_loss
-#    Y_cols= args.Y_cols
     patience= args.patience
-    fine_tune= args.fine_tune
 
     if args.device== 'gpu': 
         args.device= 'cuda'
     device= torch.device(args.device)
     
-    model= Ensemble(args).to(device)
+    model= Ensemble().to(device)
     checkpoint= Checkpoint(args)
+    P_curve= Predict_Curve(args.model_name)
     
     if fine_tune:        
         
         ft_os_df= dataframe.get_fine_df_oversampling(times)
         ft_df= dataframe.get_fine_df()
         
-        train_dataset= Train_Dataset(chunk_size= chunk_size, df= ft_os_df, Y_cols= ['Y18'], step_size= step_size)
-        valid_dataset= Train_Dataset(chunk_size= 1, df= ft_df, Y_cols= ['Y18'], step_size= 1)
-        
+        train_dataset= Train_Dataset(chunk_size= chunk_size, df= ft_os_df, Y= 'Y18', step_size= step_size)
+        valid_dataset= Train_Dataset(chunk_size= 1, df= ft_df, Y= 'Y18', step_size= 1)
+#        train_dataset= Train_Dataset(chunk_size= chunk_size, df= ft_df, Y= 'Y18', step_size= step_size)        
+#        
         train_loader= DataLoader(train_dataset, batch_size= batch_size, shuffle= True, pin_memory= True)
         valid_loader= DataLoader(valid_dataset, batch_size= batch_size, shuffle= True, pin_memory= True)
+#        train_loader, valid_loader= split_dataset(train_dataset, batch_size, val_ratio, True)
         
         checkpoint.load_model(model)
-        P_curve= Predict_Curve('%s_ft'%args.model_name)
         
     else:
         
-        pretrain_dataset= {'Y00': -16,
-                           'Y01': -10,
-                           'Y02': -10,
-                           'Y03': -20,
-                           'Y04': -20,
-                           'Y09': -4,
-                           'Y12': 4,
-                           'Y13': -9,
-                           'Y16': 0}
-        
-        X_df= pd.DataFrame()
-        Y_df= pd.DataFrame()
-        
-        X_cols= dataframe.sort_Xcols()
+        pretrain_dataset= {
+#                'Y00': -15,
+                'Y01': -3,
+                'Y02': -3,
+#                'Y03': -20,
+#                'Y04': -20,
+#                'Y05': -6,
+                'Y06': 3,
+#                'Y07': 5,
+#                'Y08': -6,
+                'Y09': 0,
+                'Y10': 0,
+                'Y11': 0,
+                'Y12': 3,
+                'Y13': -3,
+#                'Y14': -18,
+                'Y15': -3,
+                'Y16': 0,
+#                'Y17': -6
+                }
+
+        dataset_list= []
         
         for Y, shift in pretrain_dataset.items():
             df= dataframe.get_pretrain_df(shift)
-            X, Y= df[X_cols], df[Y]
-            X_df= pd.concat([X_df, X], axis= 0).reset_index(drop= True)
-            Y_df= pd.concat([Y_df, Y], axis= 0).reset_index(drop= True)
+            dataset_list.append(Train_Dataset(chunk_size= chunk_size, df= df, Y= Y, step_size= step_size))
             
-        Y_df.columns= ['Y']
-        pre_df= pd.concat([X_df, Y_df], axis= 1)
-            
-        dataset= Train_Dataset(chunk_size= chunk_size, df= pre_df, Y_cols= ['Y'], step_size= step_size)
-        P_curve= Predict_Curve(args.model_name)
-        
+        dataset= ConcatDataset(dataset_list)
         train_loader, valid_loader= split_dataset(dataset, batch_size, val_ratio, True)
  
     if resume:            
@@ -139,7 +139,7 @@ def main():
         
         training_time= time.time()
         
-        train_loss_list_per_batch, batch_list, train_loss_per_epoch= train(
+        train_loss_per_epoch, train_loss_list_per_batch, batch_list= train(
                 model,
                 train_loader, 
                 device, 
@@ -169,19 +169,25 @@ def main():
                 train_loss_list_per_batch, 
                 train_loss_per_epoch, 
                 valid_loss)
+
+        P_curve.Y_predcit_curve(model, device, 'Y00', 0, True)
         
-        best_valid_loss, check= early_stopping.check_best(train_loss_per_epoch+ valid_loss, best_valid_loss)
-        checkpoint.save_checkpoint(model, optimizer, check)
+        best_valid_loss, check= early_stopping.check_best(valid_loss, best_valid_loss)
+        checkpoint.save_checkpoint(model, optimizer, True)
         
         MSE_loss(checkpoint, args.per_batch)
         
         if early_stopping.check_stop():
             
             break
-                
-        P_curve.Y18_predict_curve(model, device, 0, True)
         
-    checkpoint.load_model(model)
+        P_curve.Y18_predict_curve(model, device, 0, True)
+                        
+    if fine_tune:
+        checkpoint.load_model(model, fine_tuned= True)
+    else:
+        checkpoint.load_model(model, fine_tuned= False)
+        
     P_curve.Y18_predict_curve(model, device, 0, True)
 
 

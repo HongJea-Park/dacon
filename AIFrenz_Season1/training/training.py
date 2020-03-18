@@ -56,7 +56,7 @@ def train(model, train_loader, device, criterion, optimizer, EPOCH, epoch, fine_
                         100* batch/ len(train_loader),
                         loss.item()))
             
-    return train_loss_list, batch_list, train_loss/ len(train_loader.sampler)
+    return train_loss/ num_data, train_loss_list, batch_list
             
             
 def valid(model, valid_loader, device, criterion):
@@ -65,6 +65,7 @@ def valid(model, valid_loader, device, criterion):
     '''
     
     valid_loss= 0
+    num_data= 0
     model.eval()
     
     with torch.no_grad():
@@ -79,15 +80,16 @@ def valid(model, valid_loader, device, criterion):
             model_output, _= model(input)
             
             valid_loss+= criterion(model_output, target).item()* batch_size
+            num_data+= batch_size
             
-    return valid_loss/ len(valid_loader.sampler)
+    return valid_loss/ num_data
 
 
 def freeze_parameters(model):
     
     for name, p in model.named_parameters():
         
-        if 'Feature' in name:
+        if 'Feature_Sequential' in name:
             
             p.requires_grad= False
 

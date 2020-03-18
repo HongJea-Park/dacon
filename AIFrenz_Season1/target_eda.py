@@ -30,13 +30,12 @@ def main():
     
     parser.add_argument('--device', type= str, default= 'gpu', help= 'For cpu: \'cpu\', for gpu: \'gpu\'')
     parser.add_argument('--chunk_size', type= int, default= 144, help= 'chunk size(sequence length)')
-    parser.add_argument('--step_size', type= int, default= 1, help= 'sequence split step')
-    parser.add_argument('--drop_prob', type= float, default= .2, help= 'probability of dropout')
+    parser.add_argument('--step_size', type= int, default= 3, help= 'sequence split step')
     parser.add_argument('--lr', type= float, default= 1e-3, help= 'learning rate')
-    parser.add_argument('--weight_decay', type= argtype.check_float, default= '1e-2', help= 'weight_decay')
+    parser.add_argument('--weight_decay', type= argtype.check_float, default= '1e-3', help= 'weight_decay')
     parser.add_argument('--epoch', type= int, default= 200, help= 'epoch')
     parser.add_argument('--batch_size', type= int, default= 128, help= 'size of batches for training')
-    parser.add_argument('--val_ratio', type= float, default= .5, help= 'validation set ratio')
+    parser.add_argument('--val_ratio', type= float, default= .3, help= 'validation set ratio')
     parser.add_argument('--model_name', type= str, default= 'target_eda', help= 'model name to save')
     parser.add_argument('--fine_tune', type= argtype.boolean, default= False, help= 'whether fine tuning or not')
     parser.add_argument('--early_stop', type= argtype.boolean, default= False, help= 'whether apply early stopping or not')
@@ -44,7 +43,8 @@ def main():
     parser.add_argument('--per_batch', type= argtype.boolean, default= True, help= 'whether load checkpoint or not')
     parser.add_argument('--c_loss', type= argtype.boolean, default= True, help= 'whether using custom loss or not')
     parser.add_argument('--resume', type= argtype.boolean, default= False, help= 'whether load checkpoint or not')
-    parser.add_argument('--Y_cols', type= argtype.str_to_list, default= '', help= 'input the y class type(by spliting ",")')
+    parser.add_argument('--Y', type= str, default= '', help= 'input the y class type')
+    parser.add_argument('--shift', type= int, default= 0, help= 'time step shift')
 
     args= parser.parse_args()
 
@@ -54,17 +54,15 @@ def main():
     weight_decay= args.weight_decay
     batch_size= args.batch_size
     val_ratio= args.val_ratio
-    fine_tune= False
+    fine_tune= args.fine_tune
     early_stop= args.early_stop
     resume= args.resume
     c_loss= args.c_loss
-    Y_cols= args.Y_cols
+    Y= args.Y
+    shift= args.shift
     patience= args.patience
     
-    if not Y_cols:
-        args.model_name= '%s/%s'%(args.model_name, Y_cols)
-    else:
-        args.model_name= '%s/%s'%(args.model_name, Y_cols[0])
+    args.model_name= '%s/%s'%(args.model_name, Y)
     
     P_curve= Predict_Curve(args.model_name)
     
@@ -72,11 +70,11 @@ def main():
         args.device= 'cuda'
     device= torch.device(args.device)
     
-    pre_df= dataframe.get_pretrain_df()
-    pre_dataset= Train_Dataset(chunk_size= chunk_size, df= pre_df, Y_cols= Y_cols, step_size= step_size)
+    pre_df= dataframe.get_pretrain_df(shift)
+    pre_dataset= Train_Dataset(chunk_size= chunk_size, df= pre_df, Y= Y, step_size= step_size)
     train_loader, valid_loader= split_dataset(pre_dataset, batch_size, val_ratio, True)
 
-    model= Ensemble(args).to(device)
+    model= Ensemble().to(device)
     checkpoint= Checkpoint(args)
         
     if resume:
@@ -99,11 +97,11 @@ def main():
         
     for e in range(epoch, args.epoch+ 1):
                   
-        print('\n Y_cols: %s \t resume: %s'%(Y_cols[0], resume))
+        print('\n Y: %s \t resume: %s'%(Y, resume))
 
         training_time= time.time()
         
-        train_loss_list_per_batch, batch_list, train_loss_per_epoch= train(
+        train_loss_per_epoch, train_loss_list_per_batch, batch_list= train(
                 model,
                 train_loader, 
                 device, 
@@ -143,10 +141,10 @@ def main():
             
             break
                 
-        P_curve.eda_predict_curve(model, device, Y_cols, 0, True)
+        P_curve.eda_predict_curve(model, device, Y, 0, True)
     
     checkpoint.load_model(model)
-    P_curve.eda_predict_curve(model, device, Y_cols, 0, True)
+    P_curve.eda_predict_curve(model, device, Y, 0, True)
     
         
 if __name__== '__main__':
