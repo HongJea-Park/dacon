@@ -5,3 +5,5 @@
 *.tar
 *.log
 *.pth
+*bak
+*.json

@@ -7,52 +7,47 @@ Created on Mon Mar  2 11:00:03 2020
 
 class Early_stopping():
     
-    '''
-    '''
+    """
+    """ 
     
+    def __init__(self, patience, delta= 0):
+        
+        self.patience = patience
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.delta = delta
+        self.is_best = False
+        
     
-    def __init__(self, patience, lowerbetter= True):
+    def __call__(self, valid_loss):
         
-        self.stop= False
-        self.count= 0
-        self.patience= patience
-        self.lowerbetter= lowerbetter
-        
-    
-    def check_best(self, valid_measure, best_measure):
-        
-        '''
-        '''
-        
-        if self.lowerbetter:
+        """
+        """
             
-            if best_measure< valid_measure:
-                self.count+= 1
-                return best_measure, False
+#        score = -valid_loss
+
+        if self.best_score is None:
+            
+            self.best_score = valid_loss
+            self.is_best = True
+            
+        elif valid_loss > self.best_score + self.delta:
+            
+            self.counter += 1
+            self.is_best = False
+            
+            if self.counter >= self.patience:
+                self.early_stop = True
                 
-            else:
-                self.count= 0
-                return valid_measure, True
-            
         else:
-            
-            if best_measure> valid_measure:
-                self.count+= 1
-                return best_measure, False
-                
-            else:
-                self.count= 0
-                return valid_measure, True
-            
-    
-    def check_stop(self):
+            self.best_score = valid_loss
+            self.counter = 0
+            self.is_best = True
+
+        print('\r EarlyStopping', \
+              '>'*self.counter + '|'*(self.patience-self.counter), '| \n')
         
-        '''
-        '''
-            
-        if self.patience<= self.count:
-            return True
-        
-        else:
-            return False
+        return self.early_stop, self.is_best
+
 

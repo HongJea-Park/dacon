@@ -11,15 +11,15 @@ import os
 
 def mkdir(base_dir):
     
-    base_split= base_dir.replace('../', '').split('/')
+    base_split = base_dir.replace('../', '').split('/')
     
-    folder= base_split[:-1]
-    file= base_split[-1]
+    folder = base_split[:-1]
+    file = base_split[-1]
     
-    dir_= '..'
+    dir_ = '..'
     for f in folder:
         
-        dir_+= '/%s'%f
+        dir_ += '/%s'%f
         
         if not os.path.isdir(dir_):
             os.mkdir(dir_)

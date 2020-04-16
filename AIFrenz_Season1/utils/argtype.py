@@ -19,7 +19,8 @@ def restricted_float(x):
         x = float(x)
         
     except ValueError:
-        raise argparse.ArgumentTypeError("%r not a floating-point literal" % (x,))
+        raise argparse.ArgumentTypeError("%r not a floating-point literal"\
+                                         %(x,))
 
     if x < 0.0 or x > 1.0:
         raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
@@ -32,7 +33,7 @@ def boolean(x):
     '''
     '''
     
-    return str(x).lower()== 'true'
+    return str(x).lower() == 'true'
 
 
 def check_float(x):
@@ -40,26 +41,41 @@ def check_float(x):
     '''
     '''
     
-    regex= re.compile('1e-[0-9]+')
-    
-    if regex.match(x):
-        
+    if isinstance(x, float):
         return x
-        
+    
     else:
-        
-        raise argparse.ArgumentTypeError("%r not a float type" % (x,))
-        
+        try:
+            float(x)
+            return x
+        except:
+            regex = re.compile('1e-[0-9]+')
+            if regex.match(x):            
+                return x
+            else:
+                raise argparse.ArgumentTypeError("%r not a float type" %(x,))
+            
         
 def str_to_list(x):
     
     '''
     '''
     
-    x= np.array(x.replace(' ', '').split(','))    
-    Y_list= np.array(['Y%s'%str(i).zfill(2) for i in range(18)])
+    x = np.array(x.replace(' ', '').split(','))    
+    Y_list = np.array(['Y%s'%str(i).zfill(2) for i in range(18)])
     
-    Y_list= Y_list[np.in1d(Y_list, x)]
+    Y_list = Y_list[np.in1d(Y_list, x)]
     
     return Y_list.tolist()
             
+
+def epoch(x):
+    
+    try:
+        int(x)
+        return int(x)
+    except:
+        if str(x).lower() == 'inf':
+            return np.inf
+        else:
+            raise argparse.ArgumentTypeError("{x} is not proper for epoch")
