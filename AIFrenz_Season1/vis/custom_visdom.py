@@ -68,11 +68,11 @@ class Custom_Visdom:
         opts = dict(legend= y_df.columns.tolist(), showlegend= True)
         
         for y_target in y_df.columns:
-            if y_target is not 'pred':
+            if y_target != 'pred':
                 mse = mse_AIFrenz(y_df[y_target], y_df['pred'])        
                 self.pred_error[y_target] = mse
         
-        if target is 'pre':
+        if target == 'pre':
             opts['title'] = 'pretrain set prediction'
             try:
                 self._update_predict_curve(y_df, opts, self.pretrain_pred)
@@ -142,6 +142,7 @@ class Custom_Visdom:
                 opts= opts,
                 win= win,
                 update= 'replace')
+        
         
     def _update_loss_plot(
             self, epoch_list, train_loss_list_per_epoch, 

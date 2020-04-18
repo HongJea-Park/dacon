@@ -1,5 +1,7 @@
 @echo on
 
+start visdom_server.bat
+
 python main.py --model_name target_eda --Y_list Y00
 python main.py --model_name target_eda --Y_list Y01
 python main.py --model_name target_eda --Y_list Y02

@@ -7,3 +7,5 @@
 *.pth
 *bak
 *.json
+*.npy
+*.zip
